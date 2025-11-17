@@ -31,6 +31,23 @@ echo "You can safely re-run this script; it is idempotent."
 echo
 
 ########################################
+# Confirm install (Y/n), default = YES
+########################################
+resp=""
+if [[ -r /dev/tty ]]; then
+  # Interactive: read from the controlling terminal, even if stdin is a pipe
+  read -r -p "Proceed with installation? [Y/n] " resp </dev/tty || resp=""
+  resp=${resp,,}
+  if [[ -n "$resp" && ! "$resp" =~ ^(y|yes)$ ]]; then
+    info "Installation aborted by user."
+    exit 0
+  fi
+else
+  # No TTY (e.g. CI) – silently proceed with defaults
+  info "No interactive terminal detected; proceeding without prompt."
+fi
+
+########################################
 # Ensure ~/bin exists
 ########################################
 info "Ensuring $BIN_DIR exists..."
