@@ -30,10 +30,14 @@ echo
 
 read -r -p "Proceed with installation? [Y/n] " resp
 resp=${resp,,}
-if [[ ! $resp =~ ^(y|yes| )$ ]]; then
+
+# Default = YES on empty input.
+# Only non-empty answers that are NOT y/yes abort.
+if [[ -n "$resp" && ! "$resp" =~ ^(y|yes)$ ]]; then
   info "Installation aborted by user."
   exit 1
 fi
+
 
 ########################################
 # Ensure ~/bin exists
