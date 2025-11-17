@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# detach: convenience wrapper to detach from current tmux session safely,
+# and broadcast a LEAVE message to all attached clients.
+
+set -euo pipefail
+IFS=$'\n\t'
+
+if ! command -v tmux >/dev/null 2>&1; then
+  echo "[ERROR] tmux is not installed or not in PATH."
+  exit 1
+fi
+
+if [[ -z "${TMUX-}" ]]; then
+  echo "[WARN] You are not inside a tmux session; nothing to detach from."
+  exit 0
+fi
+
+# Current session name (portable: prints current session name) :contentReference[oaicite:2]{index=2}
+SESSION_NAME="$(tmux display-message -p '#S' 2>/dev/null || echo '?')"
+
+# List all clients attached to this session
+clients="$(tmux list-clients -t "${SESSION_NAME}" -F '#{client_name}' 2>/dev/null || true)"
+
+if [[ -n "${clients}" ]]; then
+  while IFS= read -r c; do
+    [[ -z "$c" ]] && continue
+    tmux display-message -c "$c" "[LEAVE] A client detached from '${SESSION_NAME}'"
+  done <<< "${clients}"
+fi
+
+# Now actually detach this client
+tmux detach
