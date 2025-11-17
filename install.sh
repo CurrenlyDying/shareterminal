@@ -28,14 +28,18 @@ echo
 echo "You can safely re-run this script; it is idempotent."
 echo
 
-read -r -p "Proceed with installation? [Y/n] " resp
-resp=${resp,,}
-
-# Default = YES on empty input.
-# Only non-empty answers that are NOT y/yes abort.
-if [[ -n "$resp" && ! "$resp" =~ ^(y|yes)$ ]]; then
-  info "Installation aborted by user."
-  exit 1
+if [[ -t 0 ]]; then
+  # Interactive: ask the user on the controlling terminal
+  read -r -p "Proceed with installation? [Y/n] " resp </dev/tty || resp=""
+  resp=${resp,,}
+  # Default = YES on empty input.
+  if [[ -n "$resp" && ! "$resp" =~ ^(y|yes)$ ]]; then
+    info "Installation aborted by user."
+    exit 1
+  fi
+else
+  # Non-interactive (e.g. fully scripted) – default to YES
+  resp=""
 fi
 
 
