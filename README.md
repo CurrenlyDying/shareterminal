@@ -39,7 +39,7 @@ This project does not try to replace tmux. It just automates a few repetitive st
 You can install ShareTerminal with a single command:
 
 ```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/<YOUR_USER>/<YOUR_REPO>/main/install.sh)"
+curl -fsSL https://raw.githubusercontent.com/CurrenlyDying/shareterminal/refs/heads/main/install.sh | bash
 ```
 
 What the install script does:
