@@ -204,12 +204,11 @@ else
   echo "[INFO] Session '${SESSION_NAME}' already exists."
 fi
 
-# 🔧 Force message display-time to 5s (5000 ms) for this tmux server and session
-# Default is ~750 ms, which is very short. :contentReference[oaicite:1]{index=1}
+# Force message display-time to 5s (5000 ms) for this tmux server and session.
 tmux -S "${SOCKET_PATH}" set-option -g display-time 5000 || true
 tmux -S "${SOCKET_PATH}" set-option -t "${SESSION_NAME}" display-time 5000 2>/dev/null || true
 
-# 🔊 Broadcast JOIN to all *existing* clients (the new one isn't attached yet)
+# Broadcast JOIN to all *existing* clients (the new one isn't attached yet)
 existing_clients="$(tmux -S "${SOCKET_PATH}" list-clients -t "${SESSION_NAME}" -F '#{client_name}' 2>/dev/null || true)"
 
 if [[ -n "${existing_clients}" ]]; then
@@ -256,7 +255,7 @@ if [[ -z "${TMUX-}" ]]; then
   exit 0
 fi
 
-# Current session name (portable: prints current session name) :contentReference[oaicite:2]{index=2}
+# Current session name (portable: prints current session name)
 SESSION_NAME="$(tmux display-message -p '#S' 2>/dev/null || echo '?')"
 
 # List all clients attached to this session
@@ -310,8 +309,8 @@ Join/leave announcements:
   - When someone runs 'detach', all remaining clients see:
         [LEAVE] A client detached from 'SESSION'
 
-Messages now use:
-  - display-time = 5000 ms (5 seconds), so notifications stick around long enough. :contentReference[oaicite:3]{index=3}
+Messages use:
+  - display-time = 5000 ms (5 seconds), so notifications stick around long enough.
 
 To leave without killing it for everyone:
   - Use Ctrl-b then d        (standard tmux detach)
