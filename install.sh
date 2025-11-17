@@ -4,6 +4,7 @@
 #   - ~/bin/shareterminal
 #   - ~/bin/detach
 # and wires PATH for bash & zsh when possible.
+# Also auto-installs tmux (with confirmation) on common Linux distros and macOS.
 
 set -euo pipefail
 IFS=$'\n\t'
@@ -20,12 +21,37 @@ info()  { printf '[INFO] %s\n' "$*"; }
 warn()  { printf '[WARN] %s\n' "$*" >&2; }
 error() { printf '[ERROR] %s\n' "$*" >&2; }
 
+# Ask a yes/no question, defaulting to YES on empty input.
+# Usage: if ask_yes_no "Prompt [Y/n]"; then ...; fi
+ask_yes_no() {
+  local prompt="$1"
+  local default_yes="${2:-yes}"
+  local ans=""
+
+  if [[ -r /dev/tty ]]; then
+    # Read from controlling terminal so it works even with curl | bash
+    read -r -p "$prompt " ans </dev/tty || ans=""
+  else
+    ans=""
+  fi
+
+  ans=${ans,,}
+
+  # Empty input -> use default
+  if [[ -z "$ans" ]]; then
+    [[ "$default_yes" == "yes" ]] && return 0 || return 1
+  fi
+
+  [[ "$ans" =~ ^(y|yes)$ ]]
+}
+
 echo "=== ShareTerminal installer ==="
 echo
 echo "This will:"
 echo "  - Create $BIN_DIR (if needed)"
 echo "  - Install 'shareterminal' and a 'detach' helper into that directory"
 echo "  - Try to add $BIN_DIR to PATH in ~/.bashrc and ~/.zshrc"
+echo "  - Optionally auto-install tmux using your package manager (Linux/macOS)"
 echo
 echo "You can safely re-run this script; it is idempotent."
 echo
@@ -33,18 +59,9 @@ echo
 ########################################
 # Confirm install (Y/n), default = YES
 ########################################
-resp=""
-if [[ -r /dev/tty ]]; then
-  # Interactive: read from the controlling terminal, even if stdin is a pipe
-  read -r -p "Proceed with installation? [Y/n] " resp </dev/tty || resp=""
-  resp=${resp,,}
-  if [[ -n "$resp" && ! "$resp" =~ ^(y|yes)$ ]]; then
-    info "Installation aborted by user."
-    exit 0
-  fi
-else
-  # No TTY (e.g. CI) – silently proceed with defaults
-  info "No interactive terminal detected; proceeding without prompt."
+if ! ask_yes_no "Proceed with installation? [Y/n]" yes; then
+  info "Installation aborted by user."
+  exit 0
 fi
 
 ########################################
@@ -91,11 +108,78 @@ fi
 export PATH="$HOME/bin:$PATH"
 
 ########################################
-# Warn if tmux is missing
+# Ensure tmux is installed (auto-install if you agree)
 ########################################
 if ! command -v tmux >/dev/null 2>&1; then
   warn "tmux is not installed. shareterminal depends on tmux."
-  warn "Please install tmux with your package manager (apt, brew, pacman, etc.)"
+
+  if ! command -v sudo >/dev/null 2>&1; then
+    warn "sudo is not available; cannot auto-install tmux."
+    warn "Please install tmux manually using your package manager."
+  else
+    if ask_yes_no "Attempt to install tmux using sudo and your package manager? [Y/n]" yes; then
+      os="$(uname -s || echo unknown)"
+      pm=""
+
+      if   command -v apt-get >/dev/null 2>&1; then pm="apt-get"
+      elif command -v apt     >/dev/null 2>&1; then pm="apt"
+      elif command -v dnf     >/dev/null 2>&1; then pm="dnf"
+      elif command -v yum     >/dev/null 2>&1; then pm="yum"
+      elif command -v pacman  >/dev/null 2>&1; then pm="pacman"
+      elif command -v apk     >/dev/null 2>&1; then pm="apk"
+      elif command -v zypper  >/dev/null 2>&1; then pm="zypper"
+      elif [[ "$os" == "Darwin" ]] && command -v brew >/dev/null 2>&1; then pm="brew"
+      fi
+
+      if [[ -z "$pm" ]]; then
+        warn "No supported package manager found. Please install tmux manually."
+      else
+        info "Detected package manager: $pm"
+
+        case "$pm" in
+          apt|apt-get)
+            if ! sudo "$pm" update || ! sudo "$pm" install -y tmux; then
+              warn "Failed to install tmux via $pm. Please install it manually."
+            fi
+            ;;
+          dnf|yum|zypper)
+            if ! sudo "$pm" install -y tmux; then
+              warn "Failed to install tmux via $pm. Please install it manually."
+            fi
+            ;;
+          pacman)
+            if ! sudo "$pm" -Sy --noconfirm tmux; then
+              warn "Failed to install tmux via pacman. Please install it manually."
+            fi
+            ;;
+          apk)
+            if ! sudo "$pm" add tmux; then
+              warn "Failed to install tmux via apk. Please install it manually."
+            fi
+            ;;
+          brew)
+            # Homebrew usually does NOT use sudo
+            if ! brew install tmux; then
+              warn "Failed to install tmux via brew. Please install it manually."
+            fi
+            ;;
+          *)
+            warn "Installer does not know how to use $pm for tmux. Please install tmux manually."
+            ;;
+        esac
+
+        if command -v tmux >/dev/null 2>&1; then
+          info "tmux installed: $(tmux -V)"
+        else
+          warn "tmux still not found after attempted installation. shareterminal will not work until tmux is installed."
+        fi
+      fi
+    else
+      warn "Skipped tmux auto-install. You must install tmux manually before using shareterminal."
+    fi
+  fi
+else
+  info "tmux already installed: $(tmux -V)"
 fi
 
 ########################################
